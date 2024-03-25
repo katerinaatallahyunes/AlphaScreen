@@ -102,7 +102,8 @@ class Prediction_folder:
         print(f'Atom-atom contacts saved in {contacts_out_path}!')
 
     def write_out_calculated_metrics(self, project_name=None):
-        """Write out the information that has been processed for every predicted model.
+        """
+        Write out the information that has been processed for every predicted model.
     
         Args:
             project_name (str): a project name given to model contacts dataframe as a key identifier
@@ -111,10 +112,10 @@ class Prediction_folder:
             template_indep_info.tsv: A tsv file with the calculated template independent metrics
         """
         metrics_out_path = os.path.join(self.path_to_prediction_folder, 'template_indep_info.tsv')
-        
+    
         # Define the columns and their data types for the DataFrame
         metrics_columns_dtype = {'project_name': str, 'prediction_name': str, 'chain_A_length': int, 'chain_B_length': int, 'model_id': str, 'model_confidence': float}
-        
+    
         # Check if template_indep_info.tsv already exists
         if os.path.exists(metrics_out_path):
             metrics_df = pd.read_csv(metrics_out_path, sep='\t', index_col=0)
@@ -139,8 +140,18 @@ class Prediction_folder:
                 row = common_info + [model_id, model_inst.model_confidence]  # Add other model-specific metrics as needed
                 metrics_df.loc[len(metrics_df)] = row
     
+        # Filter the DataFrame based on specific criteria (example: model_confidence >= 0.5)
+        filtered_df = metrics_df[metrics_df['model_confidence'] >= 0.5]
+    
+        # Write out the filtered DataFrame to a new file
+        filtered_out_path = os.path.join(self.path_to_prediction_folder, 'filtered_template_indep_info.tsv')
+        filtered_df.to_csv(filtered_out_path, sep='\t', index=False)
+    
+        # Write out the original metrics DataFrame
         metrics_df.to_csv(metrics_out_path, sep='\t')
         print(f'Calculated metrics saved in {metrics_out_path}!')
+        print(f'Filtered metrics saved in {filtered_out_path}!')
+    
 
 
 
@@ -336,5 +347,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-# python3 ~/AlphaFold_benchmark/scripts/calculate_template_independent_metrics.py -run_ids 41 -path_to_run /Volumes/imb-luckgr/projects/dmi_predictor/DMI_AF2_PRS/ -project_name AlphaFold_benchmark
-# python3 ~/AlphaFold_benchmark/scripts/calculate_template_independent_metrics.py -run_ids 41 -path_to_run /Volumes/imb-luckgr/projects/dmi_predictor/DMI_AF2_PRS/ -project_name AlphaFold_benchmark -skip_write_out_contacts
