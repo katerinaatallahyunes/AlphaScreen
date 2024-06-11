@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 25 11:56:11 2024
+Author: Katerina Atallah-Yunes
 
-@author: atallahyuneska
+This script was adapted from Chop Yan Lee's original code. The implemented changes including removing additional data output that was 
+not needed for my analysis pipeline.
+
+The original code source by Chop Yan Lee: https://github.com/KatjaLuckLab/AlphaFold_manuscript/blob/main/scripts/calculate_template_independent_metrics.py
 """
 
 # This script contains generic functions that extract and manipulate metrics and information that can be obtained from predicted models without the need of a template.
