@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 25 13:53:10 2024
-
-@author: atallahyuneska
+This script uses the iptm_only.py output file to filter through the results, generating PAE plots that fit the user's input threshold
 """
 
 import csv
