@@ -1,82 +1,90 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-This script filters through PAE / contact data and figures out the most abundant interface within an AlphaFold screen
+Author: Katerina Atallah-Yunes
+
+The purpose of this script is to automatically run ChimeraX on AlphaFold output and output contact maps within 
+a certain PAE and distance restraints that can be changed by the user
 """
-
 import os
-import re
-import csv
-from collections import Counter, defaultdict
+import glob
+import sys
+from chimerax.core.commands import run
 
-def extract_values(line):
-    """Extracts the values of /A and /B from a line."""
-    match = re.search(r'/A:(\d+)\s*/B:(\d+)', line)
-    if match:
-        a_value = int(match.group(1))
-        b_value = int(match.group(2))
-        return a_value, b_value
-    return None, None
+def process_files(pdb_path, pkl_path, protein_prediction, pae, distance):
+    print(f"Processing files: PDB - {pdb_path}, PKL - {pkl_path}")
+    
+    # Verify that the files exist
+    if not (os.path.isfile(pdb_path) and os.path.isfile(pkl_path)):
+        print(f"Error: One or both of the files do not exist: {pdb_path}, {pkl_path}")
+        return
+    
+    # Load the PDB file
+    run(f"open {pdb_path}")
+    
+    # Load the PAE plot
+    run(f"alphafold pae {pkl_path}")
+    
+    # Custom ChimeraX commands using user input and protein prediction
+    run(f"color byattribute {pae}")
+    run(f"distance {distance}")
+    
+    # Example command using protein prediction
+    run(f"select {protein_prediction}")
+    
+    # Command to get the contacts within the PAE and distance restraints
+    output_file = f"{protein_prediction}_contacts.txt"
+    run(f"alphafold contacts /A to /B distance {distance} maxPae {pae} outputFile {output_file}")
 
-def count_frequencies_in_file(file_path, b_counter, pair_counter, protein_map):
-    """Counts frequencies of /A, /B, and (/A, /B) pairs from a single text file."""
-    protein_name = os.path.basename(file_path).split('_')[0]  # Extracting protein name from file name
-    with open(file_path, 'r') as file:
-        for line in file:
-            a_value, b_value = extract_values(line)
-            if a_value is not None and b_value is not None:
-                b_counter[b_value] += 1
-                pair_counter[(a_value, b_value)] += 1
-                protein_map[b_value].append(protein_name)
-            else:
-                print(f"Skipped line: {line.strip()}")
+    # Additional commands (customize as needed)
+    run("display")
+    run("bgcolor white")
+    
+    # Save the session (modify as needed)
+    output_session_path = os.path.join(os.path.dirname(pdb_path), f"{protein_prediction}.cxs")
+    run(f"save {output_session_path}")
+    
+    # Close the current session before processing the next one
+    run("close session")
 
-def count_frequencies_in_folder(folder_path):
-    """Counts frequencies of /A, /B, and (/A, /B) pairs from all text files in a folder."""
-    b_counter = Counter()
-    pair_counter = Counter()
-    protein_map = defaultdict(list)
+def main(base_directory, pae, distance):
+    # Ensure the base directory exists
+    if not os.path.exists(base_directory):
+        print(f"Error: Base directory '{base_directory}' does not exist.")
+        sys.exit(1)
 
-    if not os.path.isdir(folder_path):
-        print("Error: Invalid folder path.")
-        return b_counter, pair_counter, protein_map
+    # Iterate over directories in the base directory
+    for root, dirs, files in os.walk(base_directory):
+        # Search for pdb and json files
+        pdb_files = glob.glob(os.path.join(root, '*.pdb'))
+        pkl_files = glob.glob(os.path.join(root, '*.json'))
 
-    files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
-    if not files:
-        print("No files found in the folder.")
-        return b_counter, pair_counter, protein_map
+        if not pdb_files or not pkl_files:
+            continue
+        
+        # Process each pair of pdb and json files
+        for pdb_file in pdb_files:
+            corresponding_pkl_file = pdb_file.replace('.pdb', '.json')
+            if corresponding_pkl_file in pkl_files:
+                protein_prediction = os.path.basename(root)  # Use the folder name as protein prediction
+                pdb_path = pdb_file
+                pkl_path = corresponding_pkl_file
+                process_files(pdb_path, pkl_path, protein_prediction, pae, distance)
 
-    for filename in files:
-        file_path = os.path.join(folder_path, filename)
-        count_frequencies_in_file(file_path, b_counter, pair_counter, protein_map)
-
-    return b_counter, pair_counter, protein_map
-
-def write_to_csv(output_file, data, protein_map):
-    """Writes data to a CSV file."""
-    with open(output_file, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['B_Value', 'Frequency', 'Proteins'])
-        for value, frequency in data.items():
-            proteins = ', '.join(protein_map[value])
-            writer.writerow([value, frequency, proteins])
-
-def main(folder_path, output_folder):
-    b_counter, pair_counter, protein_map = count_frequencies_in_folder(folder_path)
-
-    # Write /B values to CSV
-    write_to_csv(os.path.join(output_folder, 'B_values_with_proteins.csv'), b_counter, protein_map)
-
-    # Write (/A, /B) pairs to CSV
-    with open(os.path.join(output_folder, 'AB_pairs.csv'), 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['A_Value', 'B_Value', 'Frequency'])
-        for pair, frequency in pair_counter.items():
-            writer.writerow([pair[0], pair[1], frequency])
-
-            
 if __name__ == "__main__":
-    # Replace 'folder_path' with the path to your folder containing text files
-    folder_path = '/Users/atallahyuneska/Desktop/test'
-    output_folder = '/Users/atallahyuneska/Desktop/test'
-    main(folder_path, output_folder)
+    # Get user inputs for base directory, PAE, and distance
+    if len(sys.argv) != 4:
+        print("Usage: python automate_chimerax.py <base_directory> <pae> <distance>")
+        sys.exit(1)
+
+    base_directory = sys.argv[1]
+    pae = sys.argv[2]
+    distance = sys.argv[3]
+
+    # Print inputs for debugging
+    print(f"Base Directory: {base_directory}")
+    print(f"PAE: {pae}, Distance: {distance}")
+
+    # To run this script in ChimeraX, use the following command:
+    # chimerax --nogui --script /path/to/this_script.py <base_directory> <pae> <distance>
+    main(base_directory, pae, distance)
