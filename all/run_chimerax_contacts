@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Author: Katerina Atallah-Yunes
+
+The purpose of this script is to automatically run ChimeraX on AlphaFold output and output contact maps within 
+a certain PAE and distance restraints that can be changed by the user
+"""
+import os
+import glob
+import sys
+from chimerax.core.commands import run
+
+def process_files(pdb_path, pkl_path, protein_prediction, pae, distance):
+    # Load the PDB file
+    run(f"open {pdb_path}")
+    
+    #Load the PAE plot
+    run(f"alphafold pae {pkl_path}")
+    
+    # Custom ChimeraX commands using user input and protein prediction
+    run(f"color byattribute {pae}")
+    run(f"distance {distance}")
+    
+    # Example command using protein prediction
+    run(f"select {protein_prediction}")
+    
+    #Commadn to get the the contacts within the PAE and distance restraints
+    run(f"alphafold contacts /A to /B distance {distance} maxPae {pae} outputFile {protein_prediction}")
+
+    # Additional commands (customize as needed)
+    run("display")
+    run("bgcolor white")
+    
+    
+    # Save the session (modify as needed)
+    output_session_path = os.path.join(os.path.dirname(pdb_path), f"{protein_prediction}.cxs")
+    run(f"save {output_session_path}")
+    
+    # Close the current session before processing the next one
+    run("close session")
+
+def main(base_directory, pae, distance):
+    for root, dirs, files in os.walk(base_directory):
+        # Extract the protein prediction from the folder name
+        protein_prediction = os.path.basename(root)
+        
+        pdb_files = glob.glob(os.path.join(root, '*.pdb'))
+        pkl_files = glob.glob(os.path.join(root, '*.pkl'))
+
+        for pdb_file in pdb_files:
+            corresponding_pkl_file = pdb_file.replace('.pdb', '.pkl')
+            if corresponding_pkl_file in pkl_files:
+                process_files(pdb_file, corresponding_pkl_file, protein_prediction, pae, distance)
+
+if __name__ == "__main__":
+    # Get user inputs for base directory, PAE, and distance
+    if len(sys.argv) != 4:
+        print("Usage: python automate_chimerax.py <base_directory> <pae> <distance>")
+        sys.exit(1)
+
+    base_directory = sys.argv[1]
+    pae = sys.argv[2]
+    distance = sys.argv[3]
+
+    # To run this script in ChimeraX, use the following command:
+    # chimerax --nogui --script /path/to/this_script.py <base_directory> <pae> <distance>
+    main(base_directory, pae, distance)
