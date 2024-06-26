@@ -1,15 +1,17 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Sep 11 11:36:25 2023
+'''
+The purpose of this script is to chop full length fastas into shorter sequences
 
-@author: atallahyuneska
-"""
+Input: 
+    1. Full length amino acid sequence fasta file (User-input path)
+    2. Start and end residue numbers of amino acid sequence 
+Output: Segment of full length amino acid sequence fasta file (Saved to output 
+'''
+import argparse
 
+'''
+Reads a FASTA file and returns a dictionary where keys are sequence IDs and values are sequences.
+'''
 def read_fasta(file_path):
-    """
-    Reads a FASTA file and returns a dictionary where keys are sequence IDs and values are sequences.
-    """
     sequences = {}
     current_id = None
     with open(file_path, "r") as fasta_file:
@@ -22,11 +24,11 @@ def read_fasta(file_path):
                 sequences[current_id] += line
     return sequences
 
+'''
+Extracts subsequence from a given sequence based on start and end indices.
+'''
 def extract_subsequence(sequence, start_index, end_index):
-    """
-    Extracts a subsequence from the given sequence based on start and end indices.
-    """
-    return sequence[start_index - 1:end_index]  # Adjust for 0-based indexing
+    return sequence[start_index - 1:end_index]  # Adjust for 1-based indexing
 
 def main(input_file, output_file, start_index, end_index):
     # Read the FASTA file
@@ -49,9 +51,12 @@ def main(input_file, output_file, start_index, end_index):
         output.write(subsequence)
 
 if __name__ == "__main__":
-    input_file = "/your/path/"  # Replace with the path to your input FASTA file
-    output_file = "your/path/"  # Replace with the desired output file path
-    start_index = 1  # Replace with the starting amino acid index
-    end_index = 1  # Replace with the ending amino acid index
+    parser = argparse.ArgumentParser(description="Chop full length fastas into shorter segments based on sequence.")
+    parser.add_argument("input_file", help="Path to the input FASTA file.")
+    parser.add_argument("output_file", help="Path to save the output segment of the sequence.")
+    parser.add_argument("start_index", type=int, help="Start residue number of the amino acid sequence.")
+    parser.add_argument("end_index", type=int, help="End residue number of the amino acid sequence.")
 
-    main(input_file, output_file, start_index, end_index)
+    args = parser.parse_args()
+
+    main(args.input_file, args.output_file, args.start_index, args.end_index)
