@@ -1,10 +1,15 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Sep 12 10:53:07 2023
+'''
+The purpose of this script is to combine two fastas for an AlphaFold screen
 
-@author: atallahyuneska
-"""
+Input: 
+    1. Path to a folder with all the fasta files for the proteins to screen against
+    2. Path to fasta with the fasta file of your protein of interest
+    3. Path to a folder where the combined fasta files are saved
+
+Output: 
+    1. Folder with all combined fasta files
+'''
+
 import os
 
 def is_fasta_file(file_name):
@@ -40,7 +45,6 @@ def write_fasta_file(file_path, sequences, encoding='utf-8'):
         for header, sequence in sequences.items():
             file.write(header + "\n")
             file.write(sequence + "\n")
-
 
 def main():
     fasta_folder_path = '/your/path/'
