@@ -41,6 +41,7 @@ def main(input_file, output_file, start_index, end_index):
 
     # Extract the first sequence and its ID
     first_sequence_id, first_sequence = list(fasta_sequences.items())[0]
+    first_sequence_id = first_sequence_id + "{start_index}" + "-" + "{end_index}"
 
     # Extract the subsequence
     subsequence = extract_subsequence(first_sequence, start_index, end_index)
