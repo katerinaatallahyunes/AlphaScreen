@@ -11,6 +11,7 @@ Output:
 '''
 
 import os
+import argparse
 
 def is_fasta_file(file_name):
     return file_name.lower().endswith(".fasta")
@@ -46,11 +47,7 @@ def write_fasta_file(file_path, sequences, encoding='utf-8'):
             file.write(header + "\n")
             file.write(sequence + "\n")
 
-def main():
-    fasta_folder_path = '/your/path/'
-    appended_fasta_path = '/your/path/'
-    output_fasta_path = '/your/path/'
-    
+def main(fasta_folder_path, appended_fasta_path, output_fasta_path):
     for filename in os.listdir(fasta_folder_path):
         if is_fasta_file(filename):
             input_file = os.path.join(fasta_folder_path, filename)
@@ -71,4 +68,11 @@ def read_file_content(file_path):
         return file.read()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Combine two FASTA files for AlphaFold screening.")
+    parser.add_argument("fasta_folder_path", help="Path to the folder with all the FASTA files for the proteins to screen against.")
+    parser.add_argument("appended_fasta_path", help="Path to the FASTA file of your protein of interest.")
+    parser.add_argument("output_fasta_path", help="Path to the folder where the combined FASTA files will be saved.")
+    
+    args = parser.parse_args()
+    
+    main(args.fasta_folder_path, args.appended_fasta_path, args.output_fasta_path)
