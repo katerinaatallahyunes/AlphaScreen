@@ -1,68 +1,91 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Author: Katerina Atallah-Yunes
-
-The purpose of this script is to automatically run ChimeraX on AlphaFold output and output contact maps within 
-a certain PAE and distance restraints that can be changed by the user
-"""
 import os
-import glob
-import sys
-from chimerax.core.commands import run
+from chimerax.core.commands import run, CmdDesc, register, OpenFolderNameArg, BoolArg
 
-def process_files(pdb_path, pkl_path, protein_prediction, pae, distance):
-    # Load the PDB file
-    run(f"open {pdb_path}")
-    
-    #Load the PAE plot
-    run(f"alphafold pae {pkl_path}")
-    
-    # Custom ChimeraX commands using user input and protein prediction
-    run(f"color byattribute {pae}")
-    run(f"distance {distance}")
-    
-    # Example command using protein prediction
-    run(f"select {protein_prediction}")
-    
-    #Commadn to get the the contacts within the PAE and distance restraints
-    run(f"alphafold contacts /A to /B distance {distance} maxPae {pae} outputFile {protein_prediction}")
+def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
+    # Get a list of all subdirectories (folders) in the specified directory
+    folders = [folder for folder in os.listdir(directory) if os.path.isdir(os.path.join(directory, folder))]
 
-    # Additional commands (customize as needed)
-    run("display")
-    run("bgcolor white")
-    
-    
-    # Save the session (modify as needed)
-    output_session_path = os.path.join(os.path.dirname(pdb_path), f"{protein_prediction}.cxs")
-    run(f"save {output_session_path}")
-    
-    # Close the current session before processing the next one
-    run("close session")
+    if not folders:
+        raise ValueError(f"No subfolders found in directory '{directory}'")
 
-def main(base_directory, pae, distance):
-    for root, dirs, files in os.walk(base_directory):
-        # Extract the protein prediction from the folder name
-        protein_prediction = os.path.basename(root)
-        
-        pdb_files = glob.glob(os.path.join(root, '*.pdb'))
-        pkl_files = glob.glob(os.path.join(root, '*.pkl'))
+    models = []
+    for folder in folders:
+        folder_path = os.path.join(directory, folder)
+        # Find AlphaFold structure files (e.g., .pdb.gz) in each subfolder
+        filenames = [filename for filename in os.listdir(folder_path)
+                     if filename.endswith('ranked_0.pdb')]
 
-        for pdb_file in pdb_files:
-            corresponding_pkl_file = pdb_file.replace('.pdb', '.pkl')
-            if corresponding_pkl_file in pkl_files:
-                process_files(pdb_file, corresponding_pkl_file, protein_prediction, pae, distance)
+        if not filenames:
+            print(f"No AlphaFold model files found in subfolder '{folder}'")
+            continue
 
-if __name__ == "__main__":
-    # Get user inputs for base directory, PAE, and distance
-    if len(sys.argv) != 4:
-        print("Usage: python automate_chimerax.py <base_directory> <pae> <distance>")
-        sys.exit(1)
+        # Open each model file found in the subfolder
+        for filename in filenames:
+            model_path = os.path.join(folder_path, filename)
+            result = run(session, f'open {model_path}')
 
-    base_directory = sys.argv[1]
-    pae = sys.argv[2]
-    distance = sys.argv[3]
+            if isinstance(result, list):
+                # Handle the case where multiple models are returned
+                for model in result:
+                    if hasattr(model, 'id'):
+                        model_name = os.path.splitext(filename)[0]
+                        run(session, 'light full')
+                        run(session, 'view')
+                        models.append(model)
+                    else:
+                        print(f"Model '{filename}' could not be opened properly.")
+            else:
+                # Handle the case where a single model is returned
+                if hasattr(result, 'id'):
+                    model = result
+                    model_name = os.path.splitext(filename)[0]
+                    run(session, 'light full')
+                    run(session, 'view')
+                    models.append(model)
+                else:
+                    print(f"Model '{filename}' could not be opened properly.")
 
+    # Open PAE file if requested
+    if open_pae:
+        open_pae_files_recursive(session, directory)
+
+    return models
+
+def open_pae_files_recursive(session, directory):
+    # Recursively find PAE files in the specified directory and its subfolders
+    for root, _, files in os.walk(directory):
+        for filename in files:
+            if filename.endswith('pae_model_1_multimer_v3_pred_0.json'):
+                pae_path = os.path.join(root, filename)
+                model_number = os.path.splitext(filename)[0].split('_')[-1]
+                structure_id = find_structure_id(root, model_number)
+                if structure_id:
+                    run(session, f'tools structure prediction alphafold error plot file {pae_path} structure {structure_id}')
+                else:
+                    print(f"No corresponding structure found for PAE file '{filename}'.")
+
+def find_structure_id(folder_path, model_number):
+    # Function to find and return the structure ID associated with the specified model number
+    for filename in os.listdir(folder_path):
+        if filename.endswith('ranked_0.pdb'):
+            model_path = os.path.join(folder_path, filename)
+            result = run(session, f'open {model_path}')
+            if isinstance(result, list):
+                for model in result:
+                    if hasattr(model, 'id') and isinstance(model.id, str) and model.id.endswith(f'_{model_number}'):
+                        return model.id
+            else:
+                if hasattr(result, 'id') and isinstance(result.id, str) and result.id.endswith(f'_{model_number}'):
+                    return result.id
+    return None
+
+def register_commands(session):
+    desc_open = CmdDesc(keyword=[('directory', OpenFolderNameArg)],
+                        optional=[('open_pae', BoolArg)],
+                        synopsis='Open AlphaFold models from folders within a directory and optionally open PAE files')
+    register('openalphafoldfolders', desc_open, open_alphafold_models_from_folders, logger=session.logger)
+
+register_commands(session)
     # To run this script in ChimeraX, use the following command:
     # chimerax --nogui --script /path/to/this_script.py <base_directory> <pae> <distance>
     main(base_directory, pae, distance)
