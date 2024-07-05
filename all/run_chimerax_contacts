@@ -1,3 +1,4 @@
+
 import os
 import json
 from chimerax.core.commands import run, CmdDesc, register, OpenFolderNameArg, BoolArg
@@ -9,12 +10,11 @@ def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
     if not folders:
         raise ValueError(f"No subfolders found in directory '{directory}'")
 
-    models = {}
+    structure_count = 1
     for folder in folders:
         folder_path = os.path.join(directory, folder)
-        # Find AlphaFold structure files (e.g., .pdb.gz) in each subfolder
-        filenames = [filename for filename in os.listdir(folder_path)
-                     if filename.endswith('ranked_0.pdb')]
+        # Find AlphaFold structure files (e.g., .pdb) in each subfolder
+        filenames = [filename for filename in os.listdir(folder_path) if filename.endswith('ranked_0.pdb')]
 
         if not filenames:
             print(f"No AlphaFold model files found in subfolder '{folder}'")
@@ -23,60 +23,42 @@ def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
         # Open each model file found in the subfolder
         for filename in filenames:
             model_path = os.path.join(folder_path, filename)
-            if model_path not in models:
-                result = run(session, f'open {model_path}')
+            result = run(session, f'open {model_path}')
 
-                if isinstance(result, list):
-                    # Handle the case where a single model is returned
-                    if hasattr(result, 'id'):
-                        model = result
-                        models[model_path] = model.id
-                        run(session, 'light full')
-                        run(session, 'view')
-                        break
-                    else:
-                        print(f"Model '{filename}' could not be opened properly.")
+            if isinstance(result, list) and len(result) > 0:
+                # Handle the case where a single model is returned
+                model = result[0]
+                run(session, 'light full')
+                run(session, 'view')
+                structure_id = model.id_string
 
-    # Open PAE file if requested
-    if open_pae:
-        open_pae_files_recursive(session, directory)
+                if open_pae:
+                    open_pae_file_for_model(session, folder_path, structure_id, structure_count)
+                    structure_count += 1
+            else:
+                print(f"Model '{filename}' could not be opened properly.")
 
-    return models
+def open_pae_file_for_model(session, model_folder_path, structure_id, structure_count):
+    distance = 5
+    pae = 5
 
-def open_pae_files_recursive(session, directory):
-    # Recursively find PAE files in the specified directory and its subfolders
-    structure_count = 1
-    for root, _, files in os.walk(directory):
-        for filename in files:
-            if filename.startswith ('pae') and filename.endswith('_multimer_v3_pred_0.json'):
-                pae_path = os.path.join(root, filename)
+    # Get the top-ranked model file from ranking_debug.json
+    ranking_file_path = os.path.join(model_folder_path, 'ranking_debug.json')
+    if os.path.exists(ranking_file_path):
+        with open(ranking_file_path) as json_file:
+            model_stats = json.load(json_file)
+            model_ranking = model_stats.get('order', [])
+            if model_ranking:
+                top_model_name = model_ranking[0]
+                top_pae_filename = f"pae_{top_model_name}.json"
+                pae_path = os.path.join(model_folder_path, top_pae_filename)
+                contacts_output = os.path.join(model_folder_path, 'contacts.csv')
 
-                # Extract the model folder path
-                model_folder_path = os.path.dirname(pae_path)
-                
-                # Get the top-ranked model file from ranking_debug.json
-                ranking_file_path = os.path.join(root, 'ranking_debug.json')
-                if os.path.exists(ranking_file_path):
-                    with open(ranking_file_path) as json_file:
-                        model_stats = json.load(json_file)
-                        model_ranking = model_stats.get('order', [])
-                        if model_ranking:
-                            top_model_name = model_ranking[0]
-                            top_model_filename = f'ranked_0.pdb'
-                            top_pae_filename = f"pae_{top_model_name}.json"
-                            top_model_path = os.path.join(model_folder_path, top_model_filename)
-
-                            # Open the top-ranked model file
-                            top_model_result = run(session, f'open {top_model_path}')
-                            structure_id = top_model_result[0] if isinstance(top_model_result, list) else top_model_result
-
-                            # Open the PAE file and associate it with the top-ranked model
-                            print(f'open {pae_path} format pae structure #{structure_count}')
-                            run(session, f'open {pae_path} format pae structure #{structure_count}')
-                            structure_count = structure_count + 1
-                            break
-                else:
-                    print(f"No ranking_debug.json file found in '{model_folder_path}'")
+                # Open the PAE file and associate it with the top-ranked model
+                run(session, f'open {pae_path} format pae structure #{structure_count}')
+                run(session, f"alphafold contacts #{structure_count}/A to #{structure_count}/B distance {distance} maxPae {pae} outputFile {contacts_output}")
+    else:
+        print(f"No ranking_debug.json file found in '{model_folder_path}'")
 
 def register_commands(session):
     desc_open = CmdDesc(keyword=[('directory', OpenFolderNameArg)],
