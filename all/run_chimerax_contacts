@@ -1,4 +1,5 @@
 import os
+import json
 from chimerax.core.commands import run, CmdDesc, register, OpenFolderNameArg, BoolArg
 
 def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
@@ -54,15 +55,36 @@ def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
 def open_pae_files_recursive(session, directory):
     # Recursively find PAE files in the specified directory and its subfolders
     for root, _, files in os.walk(directory):
+        structure_count = 1
         for filename in files:
-            if filename.endswith('pae_model_1_multimer_v3_pred_0.json'):
+            if filename.startswith ('pae') and filename.endswith('_multimer_v3_pred_0.json'):
                 pae_path = os.path.join(root, filename)
-                model_number = os.path.splitext(filename)[0].split('_')[-1]
-                structure_id = find_structure_id(root, model_number)
-                if structure_id:
-                    run(session, f'tools structure prediction alphafold error plot file {pae_path} structure {structure_id}')
+
+                # Extract the model folder path
+                model_folder_path = os.path.dirname(pae_path)
+                
+                # Get the top-ranked model file from ranking_debug.json
+                ranking_file_path = os.path.join(root, 'ranking_debug.json')
+                if os.path.exists(ranking_file_path):
+                    with open(ranking_file_path) as json_file:
+                        model_stats = json.load(json_file)
+                        model_ranking = model_stats.get('order', [])
+                        if model_ranking:
+                            top_model_name = model_ranking[0]
+                            top_model_filename = f'ranked_0.pdb'
+                            top_pae_filename = f"pae_{top_model_name}.json"
+                            top_model_path = os.path.join(model_folder_path, top_model_filename)
+
+                            # Open the top-ranked model file
+                            top_model_result = run(session, f'open {top_model_path}')
+                            structure_id = top_model_result[0] if isinstance(top_model_result, list) else top_model_result
+
+                            # Open the PAE file and associate it with the top-ranked model
+                            print(f'open {pae_path} format pae structure #{structure_count}')
+                            run(session, f'open {pae_path} format pae structure #{structure_count}')
+                            structure_count = structure_count + 1
                 else:
-                    print(f"No corresponding structure found for PAE file '{filename}'.")
+                    print(f"No ranking_debug.json file found in '{model_folder_path}'")
 
 def find_structure_id(folder_path, model_number):
     # Function to find and return the structure ID associated with the specified model number
@@ -86,6 +108,4 @@ def register_commands(session):
     register('openalphafoldfolders', desc_open, open_alphafold_models_from_folders, logger=session.logger)
 
 register_commands(session)
-    # To run this script in ChimeraX, use the following command:
-    # chimerax --nogui --script /path/to/this_script.py <base_directory> <pae> <distance>
-    main(base_directory, pae, distance)
+
