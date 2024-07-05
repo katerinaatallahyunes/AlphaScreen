@@ -9,7 +9,7 @@ def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
     if not folders:
         raise ValueError(f"No subfolders found in directory '{directory}'")
 
-    models = []
+    models = {}
     for folder in folders:
         folder_path = os.path.join(directory, folder)
         # Find AlphaFold structure files (e.g., .pdb.gz) in each subfolder
@@ -23,28 +23,19 @@ def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
         # Open each model file found in the subfolder
         for filename in filenames:
             model_path = os.path.join(folder_path, filename)
-            result = run(session, f'open {model_path}')
+            if model_path not in models:
+                result = run(session, f'open {model_path}')
 
-            if isinstance(result, list):
-                # Handle the case where multiple models are returned
-                for model in result:
-                    if hasattr(model, 'id'):
-                        model_name = os.path.splitext(filename)[0]
+                if isinstance(result, list):
+                    # Handle the case where a single model is returned
+                    if hasattr(result, 'id'):
+                        model = result
+                        models[model_path] = model.id
                         run(session, 'light full')
                         run(session, 'view')
-                        models.append(model)
+                        break
                     else:
                         print(f"Model '{filename}' could not be opened properly.")
-            else:
-                # Handle the case where a single model is returned
-                if hasattr(result, 'id'):
-                    model = result
-                    model_name = os.path.splitext(filename)[0]
-                    run(session, 'light full')
-                    run(session, 'view')
-                    models.append(model)
-                else:
-                    print(f"Model '{filename}' could not be opened properly.")
 
     # Open PAE file if requested
     if open_pae:
@@ -54,8 +45,8 @@ def open_alphafold_models_from_folders(session, directory='.', open_pae=True):
 
 def open_pae_files_recursive(session, directory):
     # Recursively find PAE files in the specified directory and its subfolders
+    structure_count = 1
     for root, _, files in os.walk(directory):
-        structure_count = 1
         for filename in files:
             if filename.startswith ('pae') and filename.endswith('_multimer_v3_pred_0.json'):
                 pae_path = os.path.join(root, filename)
@@ -83,23 +74,9 @@ def open_pae_files_recursive(session, directory):
                             print(f'open {pae_path} format pae structure #{structure_count}')
                             run(session, f'open {pae_path} format pae structure #{structure_count}')
                             structure_count = structure_count + 1
+                            break
                 else:
                     print(f"No ranking_debug.json file found in '{model_folder_path}'")
-
-def find_structure_id(folder_path, model_number):
-    # Function to find and return the structure ID associated with the specified model number
-    for filename in os.listdir(folder_path):
-        if filename.endswith('ranked_0.pdb'):
-            model_path = os.path.join(folder_path, filename)
-            result = run(session, f'open {model_path}')
-            if isinstance(result, list):
-                for model in result:
-                    if hasattr(model, 'id') and isinstance(model.id, str) and model.id.endswith(f'_{model_number}'):
-                        return model.id
-            else:
-                if hasattr(result, 'id') and isinstance(result.id, str) and result.id.endswith(f'_{model_number}'):
-                    return result.id
-    return None
 
 def register_commands(session):
     desc_open = CmdDesc(keyword=[('directory', OpenFolderNameArg)],
