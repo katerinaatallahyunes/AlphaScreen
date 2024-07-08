@@ -1,6 +1,6 @@
 # AlphaScreen
 
-AlphaScreen is a package that allows for streamlining pre- and post-processing analysis of AlphaFold screens. It can be utilized through a single script that does the full analysis. 
+AlphaScreen is a package that allows for streamlining pre- and post-processing analysis of AlphaFold screens. It can be utilized through a single script that does the full analysis. Individual scripts to simply extract metrics, generate PAE plots, and more are also available for individual use. 
 
 **Preprocessing**
 Before running any AlphaFold prediction, there are two input files that you need:
