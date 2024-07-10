@@ -5,7 +5,7 @@ This script uses the iptm_only.py output file to filter through the results, gen
 """
 
 import csv
-import os 
+import os
 import subprocess
 import shutil
 
@@ -76,9 +76,46 @@ def copy_fasta_file(base_folder, protein_name):
     else:
         return False
 
-            
+def copy_script_file(src_script_path, dest_folder):
+    """
+    Copy a script file to the destination folder.
+
+    Args:
+    src_script_path (str): Path to the source script file.
+    dest_folder (str): Path to the destination folder.
+
+    Returns:
+    bool: True if the script file is copied successfully, False otherwise.
+    """
+    if os.path.exists(src_script_path) and os.path.isdir(dest_folder):
+        shutil.copy(src_script_path, dest_folder)
+        return True
+    else:
+        return False
+
+def run_script(script_path):
+    """
+    Run a Python script and capture its output.
+
+    Args:
+    script_path (str): Path to the Python script to be executed.
+
+    Returns:
+    bool: True if the script runs successfully, False otherwise.
+    """
+    try:
+        result = subprocess.run(['python', script_path], capture_output=True, text=True, check=True)
+        print(result.stdout)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error running script {script_path}")
+        print(f"Return code: {e.returncode}")
+        print(f"Output: {e.output}")
+        print(f"Error: {e.stderr}")
+        return False
+
 def main():
-    file_path = '/Volumes/Untitled/Group1/filtered_template_indep_info.tsv'
+    file_path = '/Volumes/Untitled/salty_unprocessed/filtered_template_indep_info.tsv'
     column_name = 'prediction_name'  # Name of the column containing protein names
     protein_freq_dict = count_protein_frequencies(file_path, column_name)
 
@@ -101,17 +138,35 @@ def main():
                 os.chdir(protein_folder_path)  # Change directory to the protein folder
                 print(f'Changed directory to: {os.getcwd()}')
                 
-                                # Copy the corresponding fasta file
+                # Copy the corresponding fasta file
                 if copy_fasta_file(base_folder_path, protein):
                     print(f'Copied fasta file for {protein} to {protein_folder_path}')
                 else:
                     print(f'Error copying fasta file for {protein}')
 
+                # Copy the pdockq.py script
+                pdockq_script_src = '/path/'
+                if copy_script_file(pdockq_script_src, protein_folder_path):
+                    print(f'Copied pdockq.py to {protein_folder_path}')
+                else:
+                    print(f'Error copying pdockq.py to {protein_folder_path}')
+
+                # Copy the plot_AF_all_unrelaxed.py script
+                plot_script_src = '/path/'
+                if copy_script_file(plot_script_src, protein_folder_path):
+                    print(f'Copied plot_AF_all_unrelaxed.py to {protein_folder_path}')
+                else:
+                    print(f'Error copying plot_AF_all_unrelaxed.py to {protein_folder_path}')
+
                 # Run first Python script
-                subprocess.run(['python', '/Users/atallahyuneska/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/OReilly_group/Users/Katerina/Projects/AlphaScreen/pdockq.py'])
+                if not run_script('pdockq.py'):
+                    print(f"Error: Script pdockq.py failed for {protein}")
+                    continue
 
                 # Run second Python script
-                subprocess.run(['python', '/Users/atallahyuneska/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/OReilly_group/Users/Katerina/Projects/AlphaScreen/plot_AF_all_unrelaxed.py'])
+                if not run_script('plot_AF_all_unrelaxed.py'):
+                    print(f"Error: Script plot_AF_all_unrelaxed.py failed for {protein}")
+                    continue
 
                 print(f'Scripts executed for {protein}')
             else:
@@ -119,3 +174,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
