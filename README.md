@@ -27,3 +27,4 @@ All files and scripts to help create input files are located in the `preprocessi
   `script_template.sh` - This is what a typical AlphaFold script looks like. It **must be modified** based on the user's preferences to work properly. It is one of the inputs required for the `generate_script.sh` script.
 
   `generate_script.py` - This script uses `script_template.sh` and generates the slurm batch file based, replacing the job name and fasta file based on the fasta file name.
+
