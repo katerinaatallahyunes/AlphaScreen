@@ -11,7 +11,7 @@ Before running any AlphaFold prediction, there are two input files that you need
 
 All files and scripts to help create input files are located in the `preprocessing` folder. The files in this folder and their descriptions are:
 
-FASTA files / scripts:
+**FASTA files / scripts:**
 
   `seperate_fasta.py` - This script seperate multiple fastas in a single fasta file to individual fasta files for each protein.
   
@@ -22,7 +22,7 @@ FASTA files / scripts:
   `combined_fasta_pairs.py` - This script combines two fastas for an AlphaFold screen. This script differs from the normal combined_fasta, as it combines fastas
   from a csv that has different protein pairs, not the same protein against the same proteins.
 
-Script files / scripts:
+**Script files / scripts:**
 
   `script_template.sh` - This is what a typical AlphaFold script looks like. It **must be modified** based on the user's preferences to work properly. It is one of the inputs required for the `generate_script.sh` script.
 
