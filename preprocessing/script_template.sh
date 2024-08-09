@@ -14,6 +14,6 @@ run_singularity \
 --model_preset= \
 --fasta_paths= \
 --max_template_date= \
---use_precomputed_msas=
+--use_precomputed_msas= \
 --output_dir= \
---num_multimer_predictions_per_model=
+--num_multimer_predictions_per_model= \ 
