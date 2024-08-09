@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=
+#SBATCH --job-name={job_name}
 #SBATCH --cpus-per-task=
 #SBATCH --partition=gpu
 #SBATCH --time=
@@ -12,7 +12,7 @@ module load
 
 run_singularity \
 --model_preset= \
---fasta_paths= \
+--fasta_paths={fasta_path} \
 --max_template_date= \
 --use_precomputed_msas= \
 --output_dir= \
