@@ -10,10 +10,9 @@
 
 module load 
 
-run_singularity \
+run \
 --model_preset= \
 --fasta_paths={fasta_path} \
 --max_template_date= \
---use_precomputed_msas= \
 --output_dir= \
 --num_multimer_predictions_per_model= \ 
