@@ -15,4 +15,4 @@ run \
 --fasta_paths={fasta_path} \
 --max_template_date= \
 --output_dir= \
---num_multimer_predictions_per_model= \ 
+--num_multimer_predictions_per_model= 
